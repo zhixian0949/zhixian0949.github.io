@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>深入理解Spring MVC思想 | Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="工作流程   用户发送请求 http:&#x2F;&#x2F;localhost:9080&#x2F;springmvc-chapter2&#x2F;hello，web容器接收到请求，根据在web.xml中配置的拦截规则&#x2F;，&#x2F;hello会映射到DispatchServlet处理。 DispatchServlet会将请求匹配到对应的Bean去处理。默认由BeanNameUrlHandlerMapping来作此映射，对应的Bean就是注解@">
+<meta property="og:type" content="article">
+<meta property="og:title" content="深入理解Spring MVC思想">
+<meta property="og:url" content="http://example.com/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="工作流程   用户发送请求 http:&#x2F;&#x2F;localhost:9080&#x2F;springmvc-chapter2&#x2F;hello，web容器接收到请求，根据在web.xml中配置的拦截规则&#x2F;，&#x2F;hello会映射到DispatchServlet处理。 DispatchServlet会将请求匹配到对应的Bean去处理。默认由BeanNameUrlHandlerMapping来作此映射，对应的Bean就是注解@">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://pic3.zhimg.com/80/v2-4261baffe3f6d9a0cade0670010d731e_720w.jpg">
+<meta property="article:published_time" content="2021-03-03T02:55:54.000Z">
+<meta property="article:modified_time" content="2021-03-04T14:50:38.397Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic3.zhimg.com/80/v2-4261baffe3f6d9a0cade0670010d731e_720w.jpg">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-深入理解Spring-MVC思想" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/" class="article-date">
+  <time class="dt-published" datetime="2021-03-03T02:55:54.000Z" itemprop="datePublished">2021-03-03</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      深入理解Spring MVC思想
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="工作流程"><a href="#工作流程" class="headerlink" title="工作流程"></a>工作流程</h2><p><img src="https://pic3.zhimg.com/80/v2-4261baffe3f6d9a0cade0670010d731e_720w.jpg"></p>
+<blockquote>
+<ol>
+<li>用户发送请求<code> http://localhost:9080/springmvc-chapter2/hello</code>，web容器接收到请求，根据在web.xml中配置的拦截规则<code>/</code>，<code>/hello</code>会映射到DispatchServlet处理。</li>
+<li>DispatchServlet会将请求匹配到对应的Bean去处理。默认由BeanNameUrlHandlerMapping来作此映射，对应的Bean就是注解<code>@Controller</code>所标记的类里的方法。BeanNameUrlHandlerMapping会将这个Bean包装成HandlerExecutionChain，要是有拦截器，拦截器也在此Chain中，没有则只包括Handler。</li>
+<li>DispatchServlet会将Chain中的处理器适配为SimpleControllerHandlerAdapter。</li>
+<li>SimpleControllerAdapter会调用Handler中对应的方法进行处理，最终返回ModelAndView给DispatchServlet。</li>
+<li>视图解析器会根据ModelAndView里的逻辑视图去找物理视图，/WEB-INF/jsp/hello.jsp。</li>
+<li>视图渲染会将ModelAndView中的数据在渲染到物理视图中</li>
+<li>最终返回给DispatchServlet，DS再响应给浏览器。</li>
+</ol>
+</blockquote>
+<p>此处涉及到：</p>
+<ul>
+<li>DispatchServlet</li>
+<li>HandlerMapping</li>
+<li>HandlerAdapter</li>
+<li>ViewResolver</li>
+<li>视图解析器</li>
+<li>视图</li>
+</ul>
+<h2 id="DispatchServlet"><a href="#DispatchServlet" class="headerlink" title="DispatchServlet"></a>DispatchServlet</h2><ul>
+<li><p>功能：</p>
+<blockquote>
+<ol>
+<li>文件上传解析</li>
+<li>通过HandlerMapping将请求映射到具体的处理器，返回一个HandlerExecutionChain，包括处理器和拦截器</li>
+<li>通过HandlerAdapter支持多类型的处理器</li>
+<li>通过ViewResolver将逻辑视图解析为物理视图</li>
+<li>渲染视图</li>
+<li>遇到异常交给HandlerExceptionResolver解析</li>
+</ol>
+</blockquote>
+</li>
+<li><p>在web.xml中的配置</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">web-app</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">display-name</span>&gt;</span>Archetype Created Web Application<span class="tag">&lt;/<span class="name">display-name</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">servlet</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>dispatcherServlet<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-class</span>&gt;</span>org.springframework.web.servlet.DispatcherServlet<span class="tag">&lt;/<span class="name">servlet-class</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">init-param</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">param-name</span>&gt;</span>contextConfigLocation<span class="tag">&lt;/<span class="name">param-name</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">param-value</span>&gt;</span>classpath:springmvc.xml<span class="tag">&lt;/<span class="name">param-value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">init-param</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">servlet</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">servlet-mapping</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>dispatcherServlet<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>/<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">servlet-mapping</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">web-app</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>第一个问题是springmvc配置文件的问题</p>
+<blockquote>
+<p>1、不写,使用默认值:/WEB-INF/<servlet-name>-servlet.xml<br>2、<param-value>/WEB-INF/classes/springMVC.xml</param-value><br>3、<param-value>classpath*:springMVC-mvc.xml</param-value><br>4、多个值用逗号分隔</p>
+</blockquote>
+</li>
+<li><p>第二个问题便是拦截规则问题</p>
+<blockquote>
+<ol>
+<li><code>*.do</code>,<code>*.html</code>:不会导致静态文件（jsp，css）被拦截</li>
+<li><code>/</code>REST风格，比较流行，会导致静态文件被拦截，但是有解决方法</li>
+<li><code>/*</code>会执行Handler，但是到jsp时会再次被拦截，不能访问jsp</li>
+</ol>
+</blockquote>
+</li>
+<li><p>第三个问题是父子上下文的关系</p>
+<blockquote>
+<ol>
+<li>传统型：父上下文保存服务层、DAO层、事务的Bean，子上下文保存处理器的Bean，子上下文可以访问父上下文，反之，父不能访问子</li>
+<li>激进型：想要快速开发，没有乱七八糟的分层，服务层移到处理器层，不需要父上下文</li>
+</ol>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>如何访问到静态文件</p>
+<ol>
+<li><p>激活Tomcat的defaultservlet来处理静态文件</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">servlet-mapping</span>&gt;</span>    </span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>default<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span>  </span><br><span class="line">    <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>*.jpg<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span>      </span><br><span class="line"><span class="tag">&lt;/<span class="name">servlet-mapping</span>&gt;</span>     </span><br><span class="line"><span class="tag">&lt;<span class="name">servlet-mapping</span>&gt;</span>        </span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>default<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span>     </span><br><span class="line">    <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>*.js<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span>     </span><br><span class="line"><span class="tag">&lt;/<span class="name">servlet-mapping</span>&gt;</span>     </span><br><span class="line"><span class="tag">&lt;<span class="name">servlet-mapping</span>&gt;</span>         </span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>default<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span>        </span><br><span class="line">    <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>*.css<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span>       </span><br><span class="line"><span class="tag">&lt;/<span class="name">servlet-mapping</span>&gt;</span>     </span><br><span class="line"><span class="comment">&lt;!--要配置多个，每种文件配置一个 --&gt;</span></span><br><span class="line"><span class="comment">&lt;!--由tomcat加载，不进入spring，理论上性能更高--&gt;</span></span><br></pre></td></tr></table></figure></li>
+<li><p>```xml</p>
+<!-- 对静态资源文件的访问,指定文件不被DispatchServlet处理 -->    
+<p>&lt;mvc:resources mapping=”/images/**” location=”/images/“ /&gt; </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">3. ```xml</span><br><span class="line">   &lt;mvc:default-servlet-handler/&gt;</span><br><span class="line">   &lt;!--性能不高--&gt;</span><br></pre></td></tr></table></figure></li>
+</ol>
+</li>
+</ul>
+<h2 id=""><a href="#" class="headerlink" title=""></a></h2>
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/" data-id="ckrm3tzzd0009k4me7wpj0uoj" data-title="深入理解Spring MVC思想" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2021/07/27/hello-world/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Hello World
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2021/01/22/%E3%80%8AJava%E7%BC%96%E7%A8%8B%E6%80%9D%E6%83%B3%E5%86%85%E9%83%A8%E7%B1%BB%E3%80%8B/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">《Java编程思想内部类》</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">July 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">March 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/01/">January 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">December 2020</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/07/27/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/">深入理解Spring MVC思想</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/22/%E3%80%8AJava%E7%BC%96%E7%A8%8B%E6%80%9D%E6%83%B3%E5%86%85%E9%83%A8%E7%B1%BB%E3%80%8B/">《Java编程思想内部类》</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/21/%E9%80%9A%E8%BF%87%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F/">通过异常处理程序</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%84%89%E7%BB%9C/">深入理解Java虚拟机脉络</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

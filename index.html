@@ -122,7 +122,895 @@
 
 
   
+    <article id="post-深入理解Spring-MVC思想" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/" class="article-date">
+  <time class="dt-published" datetime="2021-03-03T02:55:54.000Z" itemprop="datePublished">2021-03-03</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/">深入理解Spring MVC思想</a>
+    </h1>
+  
 
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="工作流程"><a href="#工作流程" class="headerlink" title="工作流程"></a>工作流程</h2><p><img src="https://pic3.zhimg.com/80/v2-4261baffe3f6d9a0cade0670010d731e_720w.jpg"></p>
+<blockquote>
+<ol>
+<li>用户发送请求<code> http://localhost:9080/springmvc-chapter2/hello</code>，web容器接收到请求，根据在web.xml中配置的拦截规则<code>/</code>，<code>/hello</code>会映射到DispatchServlet处理。</li>
+<li>DispatchServlet会将请求匹配到对应的Bean去处理。默认由BeanNameUrlHandlerMapping来作此映射，对应的Bean就是注解<code>@Controller</code>所标记的类里的方法。BeanNameUrlHandlerMapping会将这个Bean包装成HandlerExecutionChain，要是有拦截器，拦截器也在此Chain中，没有则只包括Handler。</li>
+<li>DispatchServlet会将Chain中的处理器适配为SimpleControllerHandlerAdapter。</li>
+<li>SimpleControllerAdapter会调用Handler中对应的方法进行处理，最终返回ModelAndView给DispatchServlet。</li>
+<li>视图解析器会根据ModelAndView里的逻辑视图去找物理视图，/WEB-INF/jsp/hello.jsp。</li>
+<li>视图渲染会将ModelAndView中的数据在渲染到物理视图中</li>
+<li>最终返回给DispatchServlet，DS再响应给浏览器。</li>
+</ol>
+</blockquote>
+<p>此处涉及到：</p>
+<ul>
+<li>DispatchServlet</li>
+<li>HandlerMapping</li>
+<li>HandlerAdapter</li>
+<li>ViewResolver</li>
+<li>视图解析器</li>
+<li>视图</li>
+</ul>
+<h2 id="DispatchServlet"><a href="#DispatchServlet" class="headerlink" title="DispatchServlet"></a>DispatchServlet</h2><ul>
+<li><p>功能：</p>
+<blockquote>
+<ol>
+<li>文件上传解析</li>
+<li>通过HandlerMapping将请求映射到具体的处理器，返回一个HandlerExecutionChain，包括处理器和拦截器</li>
+<li>通过HandlerAdapter支持多类型的处理器</li>
+<li>通过ViewResolver将逻辑视图解析为物理视图</li>
+<li>渲染视图</li>
+<li>遇到异常交给HandlerExceptionResolver解析</li>
+</ol>
+</blockquote>
+</li>
+<li><p>在web.xml中的配置</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">web-app</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">display-name</span>&gt;</span>Archetype Created Web Application<span class="tag">&lt;/<span class="name">display-name</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">servlet</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>dispatcherServlet<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-class</span>&gt;</span>org.springframework.web.servlet.DispatcherServlet<span class="tag">&lt;/<span class="name">servlet-class</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">init-param</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">param-name</span>&gt;</span>contextConfigLocation<span class="tag">&lt;/<span class="name">param-name</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">param-value</span>&gt;</span>classpath:springmvc.xml<span class="tag">&lt;/<span class="name">param-value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">init-param</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">servlet</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">servlet-mapping</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>dispatcherServlet<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>/<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">servlet-mapping</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">web-app</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>第一个问题是springmvc配置文件的问题</p>
+<blockquote>
+<p>1、不写,使用默认值:/WEB-INF/<servlet-name>-servlet.xml<br>2、<param-value>/WEB-INF/classes/springMVC.xml</param-value><br>3、<param-value>classpath*:springMVC-mvc.xml</param-value><br>4、多个值用逗号分隔</p>
+</blockquote>
+</li>
+<li><p>第二个问题便是拦截规则问题</p>
+<blockquote>
+<ol>
+<li><code>*.do</code>,<code>*.html</code>:不会导致静态文件（jsp，css）被拦截</li>
+<li><code>/</code>REST风格，比较流行，会导致静态文件被拦截，但是有解决方法</li>
+<li><code>/*</code>会执行Handler，但是到jsp时会再次被拦截，不能访问jsp</li>
+</ol>
+</blockquote>
+</li>
+<li><p>第三个问题是父子上下文的关系</p>
+<blockquote>
+<ol>
+<li>传统型：父上下文保存服务层、DAO层、事务的Bean，子上下文保存处理器的Bean，子上下文可以访问父上下文，反之，父不能访问子</li>
+<li>激进型：想要快速开发，没有乱七八糟的分层，服务层移到处理器层，不需要父上下文</li>
+</ol>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>如何访问到静态文件</p>
+<ol>
+<li><p>激活Tomcat的defaultservlet来处理静态文件</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">servlet-mapping</span>&gt;</span>    </span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>default<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span>  </span><br><span class="line">    <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>*.jpg<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span>      </span><br><span class="line"><span class="tag">&lt;/<span class="name">servlet-mapping</span>&gt;</span>     </span><br><span class="line"><span class="tag">&lt;<span class="name">servlet-mapping</span>&gt;</span>        </span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>default<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span>     </span><br><span class="line">    <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>*.js<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span>     </span><br><span class="line"><span class="tag">&lt;/<span class="name">servlet-mapping</span>&gt;</span>     </span><br><span class="line"><span class="tag">&lt;<span class="name">servlet-mapping</span>&gt;</span>         </span><br><span class="line">    <span class="tag">&lt;<span class="name">servlet-name</span>&gt;</span>default<span class="tag">&lt;/<span class="name">servlet-name</span>&gt;</span>        </span><br><span class="line">    <span class="tag">&lt;<span class="name">url-pattern</span>&gt;</span>*.css<span class="tag">&lt;/<span class="name">url-pattern</span>&gt;</span>       </span><br><span class="line"><span class="tag">&lt;/<span class="name">servlet-mapping</span>&gt;</span>     </span><br><span class="line"><span class="comment">&lt;!--要配置多个，每种文件配置一个 --&gt;</span></span><br><span class="line"><span class="comment">&lt;!--由tomcat加载，不进入spring，理论上性能更高--&gt;</span></span><br></pre></td></tr></table></figure></li>
+<li><p>```xml</p>
+<!-- 对静态资源文件的访问,指定文件不被DispatchServlet处理 -->    
+<p>&lt;mvc:resources mapping=”/images/**” location=”/images/“ /&gt; </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">3. ```xml</span><br><span class="line">   &lt;mvc:default-servlet-handler/&gt;</span><br><span class="line">   &lt;!--性能不高--&gt;</span><br></pre></td></tr></table></figure></li>
+</ol>
+</li>
+</ul>
+<h2 id=""><a href="#" class="headerlink" title=""></a></h2>
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/" data-id="ckrm3tzzd0009k4me7wpj0uoj" data-title="深入理解Spring MVC思想" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-《Java编程思想内部类》" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2021/01/22/%E3%80%8AJava%E7%BC%96%E7%A8%8B%E6%80%9D%E6%83%B3%E5%86%85%E9%83%A8%E7%B1%BB%E3%80%8B/" class="article-date">
+  <time class="dt-published" datetime="2021-01-22T12:32:44.000Z" itemprop="datePublished">2021-01-22</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2021/01/22/%E3%80%8AJava%E7%BC%96%E7%A8%8B%E6%80%9D%E6%83%B3%E5%86%85%E9%83%A8%E7%B1%BB%E3%80%8B/">《Java编程思想内部类》</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="创建内部类"><a href="#创建内部类" class="headerlink" title="创建内部类"></a>创建内部类</h2><ul>
+<li><p>将类定义在外部类内部即可</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Outer</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> String str;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Outer</span><span class="params">(String str)</span></span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.str=str;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Inner</span></span>&#123;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">write</span><span class="params">()</span></span>&#123;</span><br><span class="line">            System.out.println(str);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Inner <span class="title">getInner</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> Inner();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Outer o=<span class="keyword">new</span> Outer(<span class="string">&quot;Outer&quot;</span>);</span><br><span class="line">        Outer.Inner oi=o.getInner();</span><br><span class="line">        oi.write();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//output:outer</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="链接到外部类"><a href="#链接到外部类" class="headerlink" title="链接到外部类"></a>链接到外部类</h2><ul>
+<li><p>构建内部类对象时，需要一个指向其外部类对象的引用，如果编译器访问不到这个引用就会报错</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Outer</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> String str;</span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">print</span><span class="params">()</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;outer method&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Outer</span><span class="params">(String str)</span></span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.str=str;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Inner</span></span>&#123;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">write</span><span class="params">()</span></span>&#123;</span><br><span class="line">            System.out.println(str);</span><br><span class="line">            print();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Inner <span class="title">getInner</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> Inner();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Outer o=<span class="keyword">new</span> Outer(<span class="string">&quot;Outer&quot;</span>);</span><br><span class="line">        Outer.Inner oi=o.getInner();</span><br><span class="line">        oi.write();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="使用-this和-new"><a href="#使用-this和-new" class="headerlink" title="使用.this和.new"></a>使用.this和.new</h2><ul>
+<li><p>在内部类中可以通过Outer.this返回外部类对象的引用，在其他类中需要创建内部类对象时，可以通过外部类对象.new 内部类来创建</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Outer</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> String str;</span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">print</span><span class="params">()</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;outer method&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">read</span><span class="params">()</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">&quot;ooooo&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Outer</span><span class="params">(String str)</span></span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.str=str;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Inner</span></span>&#123;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">write</span><span class="params">()</span></span>&#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;Inner&quot;</span>);</span><br><span class="line">            print();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> Outer <span class="title">getOuter</span><span class="params">()</span></span>&#123;</span><br><span class="line">            <span class="keyword">return</span> Outer.<span class="keyword">this</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Inner <span class="title">getInner</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> Inner();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Outer o=<span class="keyword">new</span> Outer(<span class="string">&quot;outer&quot;</span>);</span><br><span class="line">        Outer.Inner oi=o.<span class="function">new <span class="title">Inner</span><span class="params">()</span></span>;</span><br><span class="line">        Outer o1=oi.getOuter();</span><br><span class="line">        System.out.println(o==o1);</span><br><span class="line">        oi.write();</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="内部类向上转型"><a href="#内部类向上转型" class="headerlink" title="内部类向上转型"></a>内部类向上转型</h2><ul>
+<li><p>当内部类私有时，不能访问其名字，只能转型为其基类</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">InnerInterface</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">read</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Outer</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="class"><span class="keyword">class</span> <span class="title">InnerImpl</span> <span class="keyword">implements</span> <span class="title">InnerInterface</span></span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">read</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;InnerImpl&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> InnerInterface <span class="title">getInner</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> InnerImpl();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Outer o=<span class="keyword">new</span> Outer();</span><br><span class="line">        InnerInterface innerInterface=o.getInner();</span><br><span class="line">        innerInterface.read();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="局部内部类"><a href="#局部内部类" class="headerlink" title="局部内部类"></a>局部内部类</h2><ul>
+<li><p>内部类可以放入方法中，这样这个内部类属于方法，不属于外部类。在此涉及到一个问题：方法的生命周期和局部内部类的声明周期不一样。方法结束后，参数就消失了，此时局部内部类对象依旧可以生存，所以在局部内部类中使用局部变量实际上是用的局部变量的一个拷贝。这样又衍生出一个问题，局部变量修改了以后，他的拷贝不能同时修改，会造成数据不一致的问题。为了解决这个问题，jdk规定，在局部内部类中使用的局部变量必须是final的，虽然jdk8没此规定，但是在编译时是悄咪咪的加上去了的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Outer</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> InnerInterface <span class="title">getInner</span><span class="params">(<span class="keyword">int</span> x)</span></span>&#123;</span><br><span class="line">        <span class="class"><span class="keyword">class</span> <span class="title">InnerImpl</span> <span class="keyword">implements</span> <span class="title">InnerInterface</span></span>&#123;</span><br><span class="line"></span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">read</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                System.out.println(<span class="string">&quot;局部内部类&quot;</span>);</span><br><span class="line">                </span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> InnerImpl();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Outer o=<span class="keyword">new</span> Outer();</span><br><span class="line">        InnerInterface inner = o.getInner();</span><br><span class="line">        inner.read();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="匿名内部类"><a href="#匿名内部类" class="headerlink" title="匿名内部类"></a>匿名内部类</h2><ul>
+<li>匿名内部类不可能有构造器，可以通过代码块赋值</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Outer</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> Father <span class="title">getIt</span><span class="params">(<span class="keyword">int</span> x)</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> Father(x)&#123;</span><br><span class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">read</span><span class="params">()</span></span>&#123;</span><br><span class="line">                System.out.println(x);</span><br><span class="line"></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Outer o=<span class="keyword">new</span> Outer();</span><br><span class="line">        Father f=o.getIt(<span class="number">5</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="继承内部类"><a href="#继承内部类" class="headerlink" title="继承内部类"></a>继承内部类</h2><ul>
+<li><p>内部类对象会持有外部类对象的引用，但是内部类的子类并不会持有这个引用，所以构造函数需要特殊处理 </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Outer</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> x=<span class="number">5</span>;</span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Inner</span></span>&#123;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">write</span><span class="params">()</span></span>&#123;</span><br><span class="line">            System.out.println(x);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span> <span class="keyword">extends</span> <span class="title">Outer</span>.<span class="title">Inner</span></span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Test</span><span class="params">(Outer outer)</span></span>&#123;</span><br><span class="line">        outer.<span class="keyword">super</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Outer o=<span class="keyword">new</span> Outer();</span><br><span class="line">        Test t=<span class="keyword">new</span> Test(o);</span><br><span class="line">        t.write();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2021/01/22/%E3%80%8AJava%E7%BC%96%E7%A8%8B%E6%80%9D%E6%83%B3%E5%86%85%E9%83%A8%E7%B1%BB%E3%80%8B/" data-id="ckrm3tzz80006k4meel2k33p5" data-title="《Java编程思想内部类》" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-通过异常处理程序" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2021/01/21/%E9%80%9A%E8%BF%87%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F/" class="article-date">
+  <time class="dt-published" datetime="2021-01-21T08:50:00.000Z" itemprop="datePublished">2021-01-21</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2021/01/21/%E9%80%9A%E8%BF%87%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F/">通过异常处理程序</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h2><ul>
+<li>将“描述正常代码”和“处理异常的代码”分离</li>
+</ul>
+<h2 id="基本异常"><a href="#基本异常" class="headerlink" title="基本异常"></a>基本异常</h2>
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2021/01/21/%E9%80%9A%E8%BF%87%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F/" data-id="ckrm3tzze000ak4me6u9c4xug" data-title="通过异常处理程序" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-深入理解Java虚拟机脉络" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2021/01/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%84%89%E7%BB%9C/" class="article-date">
+  <time class="dt-published" datetime="2021-01-10T09:52:00.000Z" itemprop="datePublished">2021-01-10</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2021/01/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%84%89%E7%BB%9C/">深入理解Java虚拟机脉络</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="深入理解Java虚拟机脉络"><a href="#深入理解Java虚拟机脉络" class="headerlink" title="深入理解Java虚拟机脉络"></a>深入理解Java虚拟机脉络</h2><h3 id="一、Java发展史"><a href="#一、Java发展史" class="headerlink" title="一、Java发展史"></a>一、Java发展史</h3><ul>
+<li>96年1月，发布JDK1.0 。特性：Java虚拟机、Applet、AWT</li>
+<li>97年2月，发布JDK1.1 。特性：JAR文件格式、JDBC、JavaBeans、RMI等，内部类、反射</li>
+<li>98年12月，发布JDK1.2   。将Java拆分为3个体系，J2SE、J2EE、J2ME 。第一次内置了JIT即时编译器。同时新增了strictfp关键字和Collection的API</li>
+<li>99年4月，HotSpot虚拟机诞生，JDK1.3以后，他成为了默认虚拟机</li>
+<li>00年5月，JDK1.3发布。新增数学运算的类库，JNDI</li>
+<li>02年发布JDK1.4  。特性：正则表达式、NIO、日志类、XML解析器</li>
+<li>04年，JDK1.5发布。自动装箱、泛型、动态注解、枚举、可变长参数、循环遍历。同时改进了Java内存模型，提供了concurrent并发包</li>
+<li>06年JDK1.6发布，对虚拟机内部进行了大量的改进：包括锁和同步、垃圾回收、类加载</li>
+<li>09年发布JDK7  。</li>
+</ul>
+<h3 id="二、内存区域划分"><a href="#二、内存区域划分" class="headerlink" title="二、内存区域划分"></a>二、内存区域划分</h3><p><img src="https://user-gold-cdn.xitu.io/2018/9/18/165eb3dcc5f1c88f?imageView2/0/w/1280/h/960/format/webp/ignore-error/1"></p>
+<ol>
+<li>程序计数器：<ul>
+<li>存放的是将要执行的指令的行号</li>
+<li>线程私有，每个线程都有一个程序计数器</li>
+<li>如果执行的是本地方法，则内容为空</li>
+<li>唯一一个不会发生OOM的区域</li>
+</ul>
+</li>
+<li>Java虚拟机栈<ul>
+<li>线程私有</li>
+<li>数据结构：栈帧</li>
+<li>栈帧：局部变量表、操作数栈、动态连接、方法出口</li>
+<li>局部变量表：8种基本数据类型、reference对象引用、returnAddress。基本单位为槽，一个槽32位，double和long类型数据占用2个槽。一个局部变量表的大小在编译器便确定了。</li>
+<li>操作数栈：可以存放各种数据类型，一个栈深32位，double和long占2个栈深；编译时栈的最大深度就可以确定了；运行过程中各个指令会做进栈出栈的操作；该方法调用其他有返回结果的方法时，其他方法结束时会将结果push到该操作数栈上</li>
+<li>动态连接：指向运行时常量池中的方法引用</li>
+<li>方法出口：返回地址</li>
+<li>若线程需要的虚拟机栈深度大于虚拟机所允许的最大深度，则抛出StackOverflowError。</li>
+<li>若允许虚拟机栈动态扩展，当无法申请到足够的空间时抛出OOM</li>
+</ul>
+</li>
+<li>本地方法栈<ul>
+<li>与虚拟机栈功能一样。</li>
+</ul>
+</li>
+<li>Java堆<ul>
+<li>线程共享</li>
+<li>分为Eden区，From Survivor区、To Survivor区、老年代</li>
+<li>目前为止，对象均在堆上分配。随着逃逸分析越来越强大，可以在栈上分配</li>
+<li>并发分配时：CAS和TABL保证线程安全</li>
+</ul>
+</li>
+<li>方法区：<ul>
+<li>在JDK1.6及更早，实现为永久代。</li>
+<li>JDK1.7，将字符串常量池和静态变量保存到堆上</li>
+<li>JDK1.8取消永久代，在本地内存实现元空间，将永久代中其他的内容移到元空间</li>
+<li>运行时常量池：类文件常量池在加载后会移到运行时常量池，其还有动态性，运行时可添加，如string.intern</li>
+</ul>
+</li>
+<li>直接内存<ul>
+<li>NIO缓存会用到此内存区域，避免本地内存和堆内存的频繁交换数据</li>
+<li>XX:MaxDirectMemorySize指定，不指定默认与堆最大值一样（-Xmx）</li>
+<li>分配内存时要给此区域预留内存</li>
+</ul>
+</li>
+</ol>
+<h3 id="三、Hotspot对象探究"><a href="#三、Hotspot对象探究" class="headerlink" title="三、Hotspot对象探究"></a>三、Hotspot对象探究</h3><ol>
+<li><p>对象的创建</p>
+<ul>
+<li>遇到new指令，先检查该指令参数在常量池中找到一个类的符号引用</li>
+<li>检查该类是否加载、解析、初始化</li>
+<li>如果没有，需要加载</li>
+<li>分配内存<ul>
+<li>指针碰撞</li>
+<li>空闲列表</li>
+</ul>
+</li>
+<li>并发问题：对象A正在分配内存，还没来得及修改指针，对象B就开始创建。两个对象的内存区域存在冲突<ul>
+<li>CAS</li>
+<li>TABL：-XX:+/-UseTLAB</li>
+</ul>
+</li>
+<li>初始化为初始变量值0，0.0，false等等</li>
+<li>设置对象头</li>
+<li>执行构造方法</li>
+</ul>
+</li>
+<li><p>对象的内存布局</p>
+<ul>
+<li><p>对象头</p>
+<ul>
+<li><p>类本身信息：一个动态数据结构，根据标志位来确定选用哪一种数据结构</p>
+<p><img src="https://user-gold-cdn.xitu.io/2018/9/14/165d726da8142210?imageView2/0/w/1280/h/960/format/webp/ignore-error/1"></p>
+</li>
+<li><p>类型指针，表明对象属于那个类</p>
+</li>
+<li><p>如果是数组，还有数组长度信息</p>
+</li>
+</ul>
+</li>
+<li><p>实例数据</p>
+</li>
+<li><p>对其填充：8字节对其</p>
+</li>
+</ul>
+</li>
+<li><p>对象访问定位</p>
+<ul>
+<li>句柄</li>
+<li>直接指针：HotSpot使用</li>
+</ul>
+</li>
+</ol>
+<h3 id="四、垃圾回收"><a href="#四、垃圾回收" class="headerlink" title="四、垃圾回收"></a>四、垃圾回收</h3><ol>
+<li>垃圾回收涉及的区域<ul>
+<li>堆</li>
+<li>方法区</li>
+</ul>
+</li>
+<li>判断对象存活否<ul>
+<li>引用计数法：循环引用时无法回收</li>
+<li>可达性分析：GCRoot<ul>
+<li>虚拟机栈中引用的对象</li>
+<li>方法区静态属性引用的对象</li>
+<li>方法区常量引用的对象</li>
+<li>本地方法JNI引用的对象</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>引用分类<ul>
+<li>强引用：永远不会回收</li>
+<li>软引用：内存不够时回收</li>
+<li>弱引用：存活到下一次回收</li>
+<li>虚引用：没有丝毫影响，只为了在对象被回收时可以收到一个系统通知</li>
+</ul>
+</li>
+<li>方法区的回收<ul>
+<li>意义不大</li>
+<li>回收两类内容：废弃常量、无用的类</li>
+<li>判定无用类的条件：<ul>
+<li>该类的所有实例被回收</li>
+<li>加载器被回收</li>
+<li>该类的java.lang.Class对象不被引用</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>垃圾回收算法<ul>
+<li>标记-清除<ul>
+<li>标记出需要清理的算法，然后清除。或者相反</li>
+<li>效率不稳定：需要大量标记和清除过程</li>
+<li>空间碎片化</li>
+</ul>
+</li>
+<li>标记-复制<ul>
+<li>将区域分成两块</li>
+<li>将存活的对象复制到另一边，然后清空</li>
+<li>缺点：浪费空间</li>
+</ul>
+</li>
+<li>标记-整理<ul>
+<li>将存活对象移至一端，清除另一端</li>
+<li>过程中需要需要暂停程序</li>
+<li>可以采取“和稀泥”的方式，暂时容忍碎片的存在，采取标记-清理。实在不行采取标记-清理。</li>
+</ul>
+</li>
+<li>分代收集<ul>
+<li>前提假设：生存周期越长，越不容易被回收</li>
+<li>所以按年龄分成不同的区域，采取不同的回收策略</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>内存分配和回收策略<ul>
+<li>GC<ul>
+<li>Minor GC：负责清理Eden和Surviver。采取标记-复制的算法。会触发stop-the-world。</li>
+<li>Major GC：清理老年代</li>
+<li>Full GC：清理年轻代和老年代</li>
+</ul>
+</li>
+<li>空间分配担保<ul>
+<li>对象优先在Eden分配</li>
+<li>大对象直接放入老年代，大对象的标准可通过参数设置</li>
+<li>长期存活的对象进入老年代，默认为年龄15</li>
+<li>动态年龄判断，如果Survivor区提前达到占用一半的要求，则不必等到15</li>
+<li>Minor GC之前，虚拟机必须检查老年代最大可用连续空间必须大于新生代所有对象的总和。成立则安全</li>
+<li>若不成立，检查是否允许担保失败，若允许，则检查老年代最大连续可用空间是否大于历次晋升老年代对象的平均大小，大于则Minor GC</li>
+<li>小于或不允许失败，则Full GC</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<h3 id="五、类文件结构"><a href="#五、类文件结构" class="headerlink" title="五、类文件结构"></a>五、类文件结构</h3><ol>
+<li><p>Class文件结构</p>
+<ul>
+<li><p>概述</p>
+<ul>
+<li><p>Class文件是一字节为基础的二进制流</p>
+</li>
+<li><p>各数据之间没有分隔符</p>
+</li>
+<li><p>大于1字节的数据按大端法存储</p>
+</li>
+<li><p>整体文件的数据结构类似C中的结构体</p>
+</li>
+<li><p>结构体中只存在两种数据结构：无符号数和表</p>
+<p><img src="https://user-gold-cdn.xitu.io/2018/9/16/165de13de02ed1ff?imageView2/0/w/1280/h/960/format/webp/ignore-error/1"></p>
+</li>
+</ul>
+</li>
+<li><p>魔数：确定是class文件</p>
+</li>
+<li><p>版本号：JDK1对应45，高版本虚拟机可以执行低版本文件，拒绝执行更高版本文件</p>
+</li>
+<li><p>常量池：</p>
+<ul>
+<li>大小不固定，所以此结构由一个u2和一个表组成，u2代表大小</li>
+<li>索引从1开始，0代表不不引用常量池任何数据</li>
+<li>存储两大类数据<ul>
+<li>字面量：字符串，final常量</li>
+<li>符号索引：包、类或接口 全限定名</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>访问标志</p>
+</li>
+<li><p>类索引、父类索引、接口索引集合</p>
+</li>
+<li><p>字段表集合</p>
+</li>
+<li><p>方法表集合</p>
+</li>
+<li><p>属性表集合</p>
+<ul>
+<li>code：方法的指令集合，最多不能超过65535个</li>
+<li>Exception：列举所有可能抛出的受检查异常</li>
+<li>LineNumberTable：Java源码行号与字节码行号之间的对应关系：可取消，取消后抛出的异常无法显示异常行号，同时也不能按照源码行进行debug</li>
+<li>LocalVarialTable：局部变量表的变量与源码变量之间的关系，可取消，取消后IDE会用arg0，arg1.代替变量名</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>字节码指令：</p>
+<ul>
+<li> 字节码指令=操作码+操作数</li>
+<li>面向操作数栈而不是寄存器，所以指令只有操作码，操作数放在操作数栈里</li>
+<li>操作码总量不超过255</li>
+<li>操作数无长度对其，所以超过一个字节的数据需要在运行时重建出具体的数据结构</li>
+<li>加载存储指令</li>
+<li>运算指令</li>
+<li>类型转换指令</li>
+<li>对象创建访问指令</li>
+<li>控制转移指令</li>
+<li>方法调用返回指令</li>
+<li>异常处理指令</li>
+<li>同步指令</li>
+</ul>
+</li>
+</ol>
+<h3 id="六、虚拟机类加载机制"><a href="#六、虚拟机类加载机制" class="headerlink" title="六、虚拟机类加载机制"></a>六、虚拟机类加载机制</h3><ol>
+<li><p>概述</p>
+<ul>
+<li>类的声明周期<ul>
+<li>加载</li>
+<li>验证</li>
+<li>准备</li>
+<li>解析</li>
+<li>初始化</li>
+<li>使用</li>
+<li>卸载</li>
+</ul>
+</li>
+<li>类加载的时机<ul>
+<li>遇到new、getstatic、putstatic、invokestatic指令<ul>
+<li>new实例化对象</li>
+<li>获取或者设置静态变量（被final修饰、在编译期把结果放在常量池的静态字段除外）</li>
+<li>调用一个静态方法时</li>
+</ul>
+</li>
+<li>反射调用时</li>
+<li>初始化子类时，父类没有被初始化时，需要初始化父类</li>
+<li>虚拟机启动时，初始化main方法所在的类</li>
+<li>JDK7动态语言</li>
+<li>JDK8，接口中有默认方法，若实现类初始化时，先初始化接口</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>类加载过程</p>
+<ul>
+<li>加载：<ul>
+<li>获取二进制字节流</li>
+<li>将二进制流的静态存存储结构转化成运行时数据结构</li>
+<li>生成java.lang.Class对象</li>
+</ul>
+</li>
+<li>验证<ul>
+<li>格式验证<ul>
+<li>文件格式验证：魔数、版本、编码格式utf-8</li>
+<li>元数据验证：是否有父类、父类是否允许被继承、实现类是否全部实现类抽象方法</li>
+</ul>
+</li>
+<li>字节码验证：<ul>
+<li>操作数栈里的数据和操作码匹配</li>
+<li>保证跳转指令不会跳转到方法外</li>
+</ul>
+</li>
+<li>符号引用验证：<ul>
+<li>是否能找到类、字段、方法</li>
+<li>是否允许被访问</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>准备<ul>
+<li>为类变量（static）分配内存，并且设置初始值，例如0、0.0、false等</li>
+<li>final变量在编译期就赋值为设置的值</li>
+</ul>
+</li>
+<li>解析</li>
+<li>初始化</li>
+</ul>
+</li>
+<li><p>类加载器</p>
+</li>
+</ol>
+<h3 id="七、字节码执行引擎"><a href="#七、字节码执行引擎" class="headerlink" title="七、字节码执行引擎"></a>七、字节码执行引擎</h3><ol>
+<li><p>栈帧结构</p>
+<ul>
+<li><p>局部变量表</p>
+<ul>
+<li><p>存放方法参数和局部变量</p>
+</li>
+<li><p>编译期就可以知道最大容量</p>
+</li>
+<li><p>基本单位是32位的槽</p>
+</li>
+<li><p>64位数据（long、double）占用两个槽，但是局部变量表属于线程私有，所以两个槽的读写不存在所谓的线程安全，不需要考虑原子性</p>
+</li>
+<li><p>0号槽存放“this”引用</p>
+</li>
+<li><p>槽可以复用，当PC计数器的值已经离开了某变量的作用域，则该变量的槽可被其他变量复用,但是在垃圾回收时有些许影响</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">byte</span>[] placeholder=<span class="keyword">new</span> <span class="keyword">byte</span>[<span class="number">1024</span>*<span class="number">1024</span>*<span class="number">64</span>];</span><br><span class="line">            placeholder=<span class="keyword">null</span>;<span class="comment">//加这个也可以</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">int</span> a=<span class="number">0</span>;<span class="comment">//没有这个，数组不会被回收，因为虽然PC计数已经离开变量作用域，但是因为没有</span></span><br><span class="line">    <span class="comment">//新变量去复用这个槽，所以引用依然存在，依旧在GC root中；；；；加了这个了槽被复用了</span></span><br><span class="line">    </span><br><span class="line">        System.gc();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>局部变量表属于运行时数据结构，不存在类变量在加载时的准备阶段，赋值0，0.0，false等初始值，所以必须手动赋值，否则不能用</p>
+</li>
+</ul>
+</li>
+<li><p>操作数栈</p>
+<ul>
+<li>32位</li>
+<li>大小编译期便确定了</li>
+<li>两个栈帧是独立的，出于优化处理，一个栈帧的操作数栈和上一个局部变量表部分重叠</li>
+</ul>
+</li>
+<li><p>动态连接</p>
+<ul>
+<li>指向运行时常量池中该栈帧所属方法的引用</li>
+</ul>
+</li>
+<li><p>方法返回地址</p>
+<ul>
+<li>正常返回：恢复上层方法的局部变量表和操作数栈，将返回值压入上层栈帧的操作数栈，PC指向调用指令的下一个指令</li>
+<li>异常：由以后处理表处理</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>方法调用</p>
+<ul>
+<li>静态分派：也就是重载，编译期就可知，用解析更为恰当</li>
+<li>动态分派：</li>
+</ul>
+</li>
+</ol>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2021/01/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%84%89%E7%BB%9C/" data-id="ckrm3tzza0008k4mehvcm6975" data-title="深入理解Java虚拟机脉络" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-JVM-运行时数据区" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2020/12/30/JVM-%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA/" class="article-date">
+  <time class="dt-published" datetime="2020-12-30T05:15:40.000Z" itemprop="datePublished">2020-12-30</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2020/12/30/JVM-%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA/">JVM 运行时数据区</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<p>Java虚拟机会在执行Java程序的时候，将其管理的区域划分为若干个区域，每个区域都有其自己的功能，以及创建与销毁的时间。有的区域伴随虚拟机的启动而一直存在，有的区域则是伴随着用户线程的启动与结束而建立和销毁。</p>
+<ul>
+<li>程序计数器</li>
+<li>Java虚拟机栈</li>
+<li>本地方法栈</li>
+<li>Heap</li>
+<li>方法区</li>
+<li>运行时常量池</li>
+<li>直接内存</li>
+</ul>
+</blockquote>
+        
+          <p class="article-more-link">
+            <a href="/2020/12/30/JVM-%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA/#more">Read More</a>
+          </p>
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2020/12/30/JVM-%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA/" data-id="ckrm3tzz10002k4meet3werp0" data-title="JVM 运行时数据区" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-ArrayDeque" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2020/12/29/ArrayDeque/" class="article-date">
+  <time class="dt-published" datetime="2020-12-29T12:19:28.000Z" itemprop="datePublished">2020-12-29</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2020/12/29/ArrayDeque/">ArrayDeque</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<ul>
+<li>概述</li>
+<li>实现<ul>
+<li>底层数据结构</li>
+<li>构造函数</li>
+</ul>
+</li>
+</ul>
+</blockquote>
+        
+          <p class="article-more-link">
+            <a href="/2020/12/29/ArrayDeque/#more">Read More</a>
+          </p>
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2020/12/29/ArrayDeque/" data-id="ckrm3tzyp0000k4me87ol7y19" data-title="ArrayDeque" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-ArrayList源码解析" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2020/12/29/ArrayList%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/" class="article-date">
+  <time class="dt-published" datetime="2020-12-29T09:32:12.000Z" itemprop="datePublished">2020-12-29</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2020/12/29/ArrayList%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/">ArrayList源码解析</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<ul>
+<li>概述</li>
+<li>Arraylist实现<ul>
+<li>底层数据结构</li>
+<li>构造函数</li>
+<li>自动扩容</li>
+<li>add()/addAll()</li>
+<li>set()</li>
+<li>get()</li>
+<li>remove()</li>
+<li>trimToSize()</li>
+<li>indexOf()/lastIndexOf()</li>
+<li>Fail-Fast机制</li>
+</ul>
+</li>
+</ul>
+</blockquote>
+        
+          <p class="article-more-link">
+            <a href="/2020/12/29/ArrayList%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/#more">Read More</a>
+          </p>
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2020/12/29/ArrayList%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/" data-id="ckrm3tzyy0001k4me5lrx9v5o" data-title="ArrayList源码解析" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-Java并发-线程基础" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%BA%BF%E7%A8%8B%E5%9F%BA%E7%A1%80/" class="article-date">
+  <time class="dt-published" datetime="2020-12-29T08:16:42.000Z" itemprop="datePublished">2020-12-29</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%BA%BF%E7%A8%8B%E5%9F%BA%E7%A1%80/">Java并发-线程基础</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%BA%BF%E7%A8%8B%E5%9F%BA%E7%A1%80/" data-id="ckrm3tzz50005k4mehj7b71i8" data-title="Java并发-线程基础" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-Java并发-理论基础" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%90%86%E8%AE%BA%E5%9F%BA%E7%A1%80/" class="article-date">
+  <time class="dt-published" datetime="2020-12-29T02:46:27.000Z" itemprop="datePublished">2020-12-29</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%90%86%E8%AE%BA%E5%9F%BA%E7%A1%80/">Java并发-理论基础</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<ol>
+<li>为什么需要多线程？</li>
+<li>什么是线程不安全？</li>
+<li>造成线程不安全的根本原因是什么？</li>
+<li>Java是怎么解决线程不安全的？</li>
+<li>线程安全5中级别</li>
+<li>实现线程安全的思路</li>
+</ol>
+</blockquote>
+        
+          <p class="article-more-link">
+            <a href="/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%90%86%E8%AE%BA%E5%9F%BA%E7%A1%80/#more">Read More</a>
+          </p>
+        
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%90%86%E8%AE%BA%E5%9F%BA%E7%A1%80/" data-id="ckrm3tzz40004k4me5qrmh33o" data-title="Java并发-理论基础" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+
+
+  <nav id="page-nav">
+    
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
+  </nav>
 
 </section>
         
@@ -140,7 +1028,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Archives</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">July 2021</a></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">July 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">March 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/01/">January 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">December 2020</a></li></ul>
     </div>
   </div>
 
@@ -154,6 +1042,22 @@
         
           <li>
             <a href="/2021/07/27/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/">深入理解Spring MVC思想</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/22/%E3%80%8AJava%E7%BC%96%E7%A8%8B%E6%80%9D%E6%83%B3%E5%86%85%E9%83%A8%E7%B1%BB%E3%80%8B/">《Java编程思想内部类》</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/21/%E9%80%9A%E8%BF%87%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F/">通过异常处理程序</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%84%89%E7%BB%9C/">深入理解Java虚拟机脉络</a>
           </li>
         
       </ul>

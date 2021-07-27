@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>Java并发-理论基础 | Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="为什么需要多线程？ 什么是线程不安全？ 造成线程不安全的根本原因是什么？ Java是怎么解决线程不安全的？ 线程安全5中级别 实现线程安全的思路">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Java并发-理论基础">
+<meta property="og:url" content="http://example.com/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%90%86%E8%AE%BA%E5%9F%BA%E7%A1%80/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="为什么需要多线程？ 什么是线程不安全？ 造成线程不安全的根本原因是什么？ Java是怎么解决线程不安全的？ 线程安全5中级别 实现线程安全的思路">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://www.pdai.tech/_images/jvm/java-jmm-1.png">
+<meta property="og:image" content="https://www.pdai.tech/_images/jvm/java-jmm-3.png">
+<meta property="article:published_time" content="2020-12-29T02:46:27.000Z">
+<meta property="article:modified_time" content="2020-12-29T07:46:23.739Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://www.pdai.tech/_images/jvm/java-jmm-1.png">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-Java并发-理论基础" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%90%86%E8%AE%BA%E5%9F%BA%E7%A1%80/" class="article-date">
+  <time class="dt-published" datetime="2020-12-29T02:46:27.000Z" itemprop="datePublished">2020-12-29</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      Java并发-理论基础
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<ol>
+<li>为什么需要多线程？</li>
+<li>什么是线程不安全？</li>
+<li>造成线程不安全的根本原因是什么？</li>
+<li>Java是怎么解决线程不安全的？</li>
+<li>线程安全5中级别</li>
+<li>实现线程安全的思路</li>
+</ol>
+</blockquote>
+<span id="more"></span>
+
+<h2 id="为什么引入多线程"><a href="#为什么引入多线程" class="headerlink" title="为什么引入多线程"></a>为什么引入多线程</h2><blockquote>
+<p>操作系统早些年是单道批操作系统，在一段时间内只能执行一个程序，这种情况下有一个问题就是资源利用率不高，CPU计算速度极快，内存读取较慢，IO读取更慢，这样就会出现CPU有大段时间在等待。因此多道批操作系统出现，同时执行多个程序，他们在宏观上并行，微观上串行，然后每个程序都有一个记录程序状态的数据结构PCB，这样可以就可以独立运行。此时CPU利用率已经很不错了，但是进程切换恢复上下文等，较为耗时，线程就比较容易了，一个进程内的线程共享进程资源，线程只作为处理及分配的基本单元，切换只需要很小的开销。</p>
+<p>归根结底就一点，操作系统为了解决CPU、内存和IO之间速度的矛盾，提高CPU利用率。</p>
+</blockquote>
+<h2 id="什么是线程不安全"><a href="#什么是线程不安全" class="headerlink" title="什么是线程不安全"></a>什么是线程不安全</h2><blockquote>
+<p>线程是随时可以中断的，假设现在有两个线程共享一个变量，执行读取-&gt;操作-&gt;放回的命令。线程A读取完后被中断，线程 B读取操作放回，然后线程A恢复，执行操作放回命令。本来我们的要求是一个线程操作另外已给线程操作的结果，实际上是两个线程都操作了旧数据。生活中的例子就是，两个人同时卖票，一张票卖了两次。</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">int</span> res=<span class="number">0</span>;</span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">add</span><span class="params">()</span></span>&#123;</span><br><span class="line">        res++;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">int</span> <span class="title">getRes</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> res;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">        Test t=<span class="keyword">new</span> Test();</span><br><span class="line">        <span class="keyword">final</span> CountDownLatch countDownLatch = <span class="keyword">new</span> CountDownLatch(<span class="number">100</span>);</span><br><span class="line">        ExecutorService executorService = Executors.newCachedThreadPool();</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">100</span>; i++) &#123;</span><br><span class="line">            executorService.execute(() -&gt; &#123;</span><br><span class="line">                t.add();</span><br><span class="line">                countDownLatch.countDown();</span><br><span class="line">            &#125;);</span><br><span class="line">        &#125;</span><br><span class="line">        countDownLatch.await();</span><br><span class="line">        executorService.shutdown();</span><br><span class="line">        System.out.println(t.getRes());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//结果：99</span></span><br><span class="line"><span class="comment">//小于100</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="什么造成了线程不安全"><a href="#什么造成了线程不安全" class="headerlink" title="什么造成了线程不安全"></a>什么造成了线程不安全</h2><blockquote>
+<p>还是那个原因，解决CPU、IO、内存的速度。已经说了线程是操作系统层面的解决方案，同时硬件和编译器也有相关的措施。</p>
+<ol>
+<li>硬件：给CPU增加了一二三及高速缓存，CPU处理的数据都是从缓存内读取。CPU1上的线程修改玩数据，CPU2上的线程不能立即看到，这就是可见性的问题。</li>
+<li>编译器：编译器优化指令执行顺序，提高CPU利用率，导致有序性的问题</li>
+<li>操作系统，增加进程，线程，分时复用CPU，导致原子性问题</li>
+</ol>
+</blockquote>
+<ul>
+<li><p>CPU：可见性</p>
+<blockquote>
+<p>看图就明白了，线程A修改的数据存放在本地内存A，但是并没有及时刷新到本地内存B，所以线程B使用的仍旧是旧数据</p>
+</blockquote>
+<p><img src="https://www.pdai.tech/_images/jvm/java-jmm-1.png"></p>
+</li>
+<li><p>分时复用：原子性</p>
+<blockquote>
+<p>容易理解，不记了。</p>
+</blockquote>
+</li>
+<li><p>重排序：有序性</p>
+<blockquote>
+<p>从 java 源代码到最终实际执行的指令序列，会分别经历下面三种重排序：</p>
+</blockquote>
+<p><img src="https://www.pdai.tech/_images/jvm/java-jmm-3.png"></p>
+<blockquote>
+<p>上述的 1 属于编译器重排序，2 和 3 属于处理器重排序。这些重排序都可能会导致多线程程序出现内存可见性问题。对于编译器，JMM 的编译器重排序规则会禁止特定类型的编译器重排序（不是所有的编译器重排序都要禁止）。对于处理器重排序，JMM 的处理器重排序规则会要求 java 编译器在生成指令序列时，插入特定类型的内存屏障（memory barriers，intel 称之为 memory fence）指令，通过内存屏障指令来禁止特定类型的处理器重排序（不是所有的处理器重排序都要禁止）</p>
+</blockquote>
+</li>
+</ul>
+<h2 id="Java是怎么解决这样问题的"><a href="#Java是怎么解决这样问题的" class="headerlink" title="Java是怎么解决这样问题的"></a>Java是怎么解决这样问题的</h2><blockquote>
+<ol>
+<li>三个关键字：synchronized，volatile，final</li>
+<li>JMM</li>
+<li>8个Happens-before</li>
+</ol>
+</blockquote>
+<ul>
+<li><p>原子性：</p>
+<blockquote>
+<p>synchronized和Loc可以保证一段代码在同一时间只有一个线程执行，自然而然保证了原子性</p>
+</blockquote>
+</li>
+<li><p>可见性</p>
+<blockquote>
+<p>volatile修饰共享变量时，一旦变量发生了改变，会立即从工作内存刷新到主存，其他线程需要该变量时会从主存中获取，从而保证了可见性</p>
+<p>另外synchronized和Lock可以保证只有一个线程执行一段代码块，执行完成后，会立即将变量刷回主存，所以会保证可见性。</p>
+</blockquote>
+</li>
+<li><p>有序性</p>
+<blockquote>
+<p>volatile可以通过内存屏障保证有序性。synchronized和Lock通过锁保证有序性。JMM通过8个happens-before来保证有序性</p>
+</blockquote>
+</li>
+<li><p>happens-before规则</p>
+<blockquote>
+<ol>
+<li>单一线程规则：一个线程内，程序前面的操作先发生于后面的操作</li>
+<li>官称锁定规则：unlock先行发生于同一个锁的lock，即也即同一个锁要上锁必须先解锁</li>
+<li>volatile变量规则，该变量写先于读</li>
+<li>线程启动规则：start方法先行与任何一个该线程的操作</li>
+<li>线程加入规则：threadA里join了threadB，则必须线程B结束后才能继续执行线程A的后续语句</li>
+<li>线程终端规则：线程中任意操作都要先行与终止检测</li>
+<li>对象终止检测：对象初始化先行与清理</li>
+<li>传递性</li>
+</ol>
+</blockquote>
+</li>
+</ul>
+<h2 id="线程安全级别"><a href="#线程安全级别" class="headerlink" title="线程安全级别"></a>线程安全级别</h2><ol>
+<li><p>不可变</p>
+<blockquote>
+<p>显而易见，都不变了哪来的线程不安全</p>
+</blockquote>
+</li>
+<li><p>绝对安全</p>
+</li>
+<li><p>相对安全</p>
+</li>
+<li><p>线程兼容</p>
+</li>
+<li><p>线程对立，极力避免</p>
+</li>
+</ol>
+<h2 id="实现线程安全的思路"><a href="#实现线程安全的思路" class="headerlink" title="实现线程安全的思路"></a>实现线程安全的思路</h2><ul>
+<li>互斥同步</li>
+<li>非阻塞同步 CAS</li>
+<li>无同步方案<ul>
+<li>线程栈</li>
+<li>Threadlocal</li>
+<li>可重入代码块</li>
+</ul>
+</li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%90%86%E8%AE%BA%E5%9F%BA%E7%A1%80/" data-id="ckrm3tzz40004k4me5qrmh33o" data-title="Java并发-理论基础" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2020/12/29/Java%E5%B9%B6%E5%8F%91-%E7%BA%BF%E7%A8%8B%E5%9F%BA%E7%A1%80/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Java并发-线程基础
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2020/12/28/Java%E5%9F%BA%E7%A1%80-%E6%B3%A8%E8%A7%A3%E6%9C%BA%E5%88%B6/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Java基础-注解机制</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">July 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">March 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/01/">January 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">December 2020</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/07/27/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/">深入理解Spring MVC思想</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/22/%E3%80%8AJava%E7%BC%96%E7%A8%8B%E6%80%9D%E6%83%B3%E5%86%85%E9%83%A8%E7%B1%BB%E3%80%8B/">《Java编程思想内部类》</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/21/%E9%80%9A%E8%BF%87%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F/">通过异常处理程序</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%84%89%E7%BB%9C/">深入理解Java虚拟机脉络</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>

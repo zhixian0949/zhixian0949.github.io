@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>泛型机制详解 | Hexo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="Java泛型机制是从jdk1.5加入的特性，为了兼容之前的版本，Java采取了”伪泛型的策略”。所谓的“伪泛型”通俗的理解就是，语法上支持，编译时将泛型信息擦除掉，替换为具体的类型。 作用：  类型安全：编译时强类型检查，通过泛型定义变量的类型，编译器会验证类型假设，如果没有泛型，这些假设只有程序员自己知道，人总是有疏忽的时候，靠人工检查那是不安全的。 消除强制类型转换：增加了可读性，减少了出错">
+<meta property="og:type" content="article">
+<meta property="og:title" content="泛型机制详解">
+<meta property="og:url" content="http://example.com/2020/12/27/%E6%B3%9B%E5%9E%8B%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="Java泛型机制是从jdk1.5加入的特性，为了兼容之前的版本，Java采取了”伪泛型的策略”。所谓的“伪泛型”通俗的理解就是，语法上支持，编译时将泛型信息擦除掉，替换为具体的类型。 作用：  类型安全：编译时强类型检查，通过泛型定义变量的类型，编译器会验证类型假设，如果没有泛型，这些假设只有程序员自己知道，人总是有疏忽的时候，靠人工检查那是不安全的。 消除强制类型转换：增加了可读性，减少了出错">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-12-27T14:38:51.000Z">
+<meta property="article:modified_time" content="2020-12-28T09:47:03.812Z">
+<meta property="article:author" content="John Doe">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+    
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+<meta name="generator" content="Hexo 5.4.0"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Hexo</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+          <a id="nav-rss-link" class="nav-icon" href="/atom.xml" title="RSS Feed"></a>
+        
+        <a id="nav-search-btn" class="nav-icon" title="Search"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-泛型机制详解" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2020/12/27/%E6%B3%9B%E5%9E%8B%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/" class="article-date">
+  <time class="dt-published" datetime="2020-12-27T14:38:51.000Z" itemprop="datePublished">2020-12-27</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      泛型机制详解
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <blockquote>
+<p>Java泛型机制是从jdk1.5加入的特性，为了兼容之前的版本，Java采取了”伪泛型的策略”。所谓的“伪泛型”通俗的理解就是，语法上支持，编译时将泛型信息擦除掉，替换为具体的类型。</p>
+<p>作用：</p>
+<ul>
+<li>类型安全：编译时强类型检查，通过泛型定义变量的类型，编译器会验证类型假设，如果没有泛型，这些假设只有程序员自己知道，人总是有疏忽的时候，靠人工检查那是不安全的。</li>
+<li>消除强制类型转换：增加了可读性，减少了出错的机会。</li>
+<li>更好的代码复用性：举个例子，如果需要一个方法处理各种数据类型，就需要重载，引入泛型，就可以将类型参数化，一个方法足矣。</li>
+<li>潜在的性能收益：因为Java泛型在编译时是要擦除掉的，这样兼容了之前的代码，同时也没有给JVM带来新的约束，为以后JVM优化带来了可能。</li>
+</ul>
+</blockquote>
+<span id="more"></span>
+
+<h2 id="泛型的基本使用"><a href="#泛型的基本使用" class="headerlink" title="泛型的基本使用"></a>泛型的基本使用</h2><ul>
+<li><p>泛型类</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span>&lt;<span class="title">T</span>,<span class="title">V</span>&gt; </span>&#123;<span class="comment">//可以指定多个参数</span></span><br><span class="line">    <span class="keyword">private</span> T data1;</span><br><span class="line">    <span class="keyword">private</span> V data2;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">init</span><span class="params">(T data1,V data2)</span></span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.data1=data1;</span><br><span class="line">        <span class="keyword">this</span>.data2=data2;</span><br><span class="line">        System.out.println(<span class="string">&quot;data1类型：&quot;</span>+data1.getClass());</span><br><span class="line">        System.out.println(<span class="string">&quot;data2类型：&quot;</span>+data2.getClass());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Test&lt;String,Integer&gt; test=<span class="keyword">new</span> Test&lt;&gt;();<span class="comment">//基本数据类型不能使用泛型</span></span><br><span class="line">        test.init(<span class="string">&quot;m&quot;</span>,<span class="number">5</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//运行结果</span></span><br><span class="line"><span class="comment">//data1类型：class java.lang.String</span></span><br><span class="line"><span class="comment">//data2类型：class java.lang.Integer</span></span><br></pre></td></tr></table></figure></li>
+<li><p>泛型接口</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> com;</span><br><span class="line"><span class="class"><span class="keyword">interface</span> <span class="title">Info</span>&lt;<span class="title">T</span>&gt;</span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> T <span class="title">getVar</span><span class="params">()</span></span>;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setData</span><span class="params">(T data)</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span> <span class="keyword">implements</span> <span class="title">Info</span>&lt;<span class="title">String</span>&gt;</span>&#123;<span class="comment">//指定具体类型</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">getVar</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="string">&quot;good&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setData</span><span class="params">(String data)</span> </span>&#123;</span><br><span class="line">        System.out.println(data);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Info info1=<span class="keyword">new</span> Test();</span><br><span class="line">        System.out.println(info1.getVar());</span><br><span class="line">        Info&lt;Integer&gt; info2=<span class="keyword">new</span> Test2&lt;&gt;();</span><br><span class="line">        info2.setData(<span class="number">5</span>);</span><br><span class="line">        System.out.println(info2.getVar());</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Test2</span>&lt;<span class="title">T</span>&gt; <span class="keyword">implements</span> <span class="title">Info</span>&lt;<span class="title">T</span>&gt;</span>&#123;<span class="comment">//不指定具体类型</span></span><br><span class="line">    <span class="keyword">private</span> T data;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setData</span><span class="params">(T data)</span></span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.data=data;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> T <span class="title">getVar</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> data;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//good</span></span><br><span class="line"><span class="comment">//5</span></span><br></pre></td></tr></table></figure></li>
+<li><p>泛型方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span></span>&#123;</span><br><span class="line">    <span class="keyword">public</span> &lt;T&gt; <span class="function">T <span class="title">initvar</span><span class="params">(T data)</span></span>&#123;</span><br><span class="line">        System.out.println(data.getClass());</span><br><span class="line">        <span class="keyword">return</span> data;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Test test=<span class="keyword">new</span> Test();</span><br><span class="line">        test.initvar(<span class="number">5</span>);</span><br><span class="line">        test.initvar(<span class="string">&quot;good&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//class java.lang.Integer</span></span><br><span class="line"><span class="comment">//class java.lang.String</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="泛型上下限"><a href="#泛型上下限" class="headerlink" title="泛型上下限"></a>泛型上下限</h2><ul>
+<li><p>遇到问题</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">A</span></span>&#123;&#125;</span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">B</span> <span class="keyword">extends</span> <span class="title">A</span></span>&#123;&#125;</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span></span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">funA</span><span class="params">(A a)</span></span>&#123;&#125;;</span><br><span class="line">    <span class="comment">//ok</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">funB</span><span class="params">(B b)</span></span>&#123;</span><br><span class="line">        funA(b);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">func</span><span class="params">(List&lt;A&gt; as)</span></span>&#123;&#125;;</span><br><span class="line">	<span class="comment">//error</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">funD</span><span class="params">(List&lt;B&gt; bs)</span></span>&#123;</span><br><span class="line">        func(bs);<span class="comment">// Unresolved compilation problem: The method doPrint(List&lt;A&gt;) in the                     //type test is not applicable for the arguments (List&lt;B&gt;)</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>解决</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">funC</span><span class="params">(List&lt;? extends A&gt; listA)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// ...          </span></span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">funD</span><span class="params">(List&lt;B&gt; listB)</span> </span>&#123;</span><br><span class="line">    funC(listB); <span class="comment">// OK</span></span><br><span class="line">    <span class="comment">// ...             </span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+<li><p>用法总结</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">&lt;?&gt; 无限制通配符</span><br><span class="line">&lt;? extends E&gt; extends 关键字声明了类型的上界，表示参数化的类型可能是所指定的类型，或者是此类型的子类</span><br><span class="line">&lt;? <span class="keyword">super</span> E&gt; <span class="keyword">super</span> 关键字声明了类型的下界，表示参数化的类型可能是指定的类型，或者是此类型的父类</span><br><span class="line"></span><br><span class="line"><span class="comment">// 使用原则《Effictive Java》</span></span><br><span class="line"><span class="comment">// 为了获得最大限度的灵活性，要在表示 生产者或者消费者 的输入参数上使用通配符，使用的规则就是：生产者有上限、消费者有下限</span></span><br><span class="line"><span class="number">1.</span> 如果参数化类型表示一个 T 的生产者，使用 &lt; ? extends T&gt;;</span><br><span class="line"><span class="number">2.</span> 如果它表示一个 T 的消费者，就使用 &lt; ? <span class="keyword">super</span> T&gt;；</span><br><span class="line"><span class="number">3.</span> 如果既是生产又是消费，那使用通配符就没什么意义了，因为你需要的是精确的参数类型。</span><br><span class="line"><span class="comment">//阿里巴巴开发手册</span></span><br><span class="line"><span class="number">1.</span>&lt;? extends E&gt;此泛型集合不能使用add方法()，&lt;? <span class="keyword">super</span> E&gt;不能使用get()方法</span><br><span class="line"><span class="number">2.</span>频繁读取适合用上限，频繁插入用下限</span><br></pre></td></tr></table></figure></li>
+<li><p>泛型数组创建</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span>&lt;<span class="title">T</span>&gt; </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> T[] arrays;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Test</span><span class="params">(Class&lt;T&gt; type,<span class="keyword">int</span> size)</span></span>&#123;</span><br><span class="line">        arrays= (T[]) Array.newInstance(type,size);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> T[] createArray()&#123;</span><br><span class="line">        <span class="keyword">return</span> arrays;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Test&lt;String&gt; t=<span class="keyword">new</span> Test(String.class,<span class="number">5</span>);</span><br><span class="line">        String[] strings=t.createArray();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="深入理解类型擦除"><a href="#深入理解类型擦除" class="headerlink" title="深入理解类型擦除"></a>深入理解类型擦除</h2><blockquote>
+<p>类型擦除是指编译器将尖括号及里面的类型替换为为原生类型，这样JVM看到的就像没有泛型一样，兼容了之前的代码</p>
+</blockquote>
+<ul>
+<li><p>泛型擦除的原则</p>
+<ul>
+<li>消除类型参数声明，即<T>。</li>
+<li>没有上下限则替换为Object，有上下限则替换为限定类型。</li>
+<li>为了保证类型安全，必要时插入强制类型转换代码。</li>
+<li>自动产生“桥接方法”以保证擦除类型后的代码仍然具有泛型的“多态性”。</li>
+</ul>
+</li>
+<li><p>编译器检查</p>
+<ul>
+<li><p>Java编译器先检查类型，然后擦除，最后编译</p>
+</li>
+<li><p>检查是针对谁的？</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ArrayList&lt;String&gt; list1 = <span class="keyword">new</span> ArrayList(); <span class="comment">//第一种 情况</span></span><br><span class="line">ArrayList list2 = <span class="keyword">new</span> ArrayList&lt;String&gt;(); <span class="comment">//第二种 情况</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>类型检查就是针对引用的，谁是一个引用，用这个引用调用泛型方法，就会对这个引用调用的方法进行类型检测，而无关它真正引用的对象</strong>。</p>
+</li>
+</ul>
+</li>
+<li><p>泛型的多态</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">A</span>&lt;<span class="title">T</span>&gt;</span>&#123;</span><br><span class="line">    <span class="keyword">private</span> T data;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> T <span class="title">get</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> data;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">set</span><span class="params">(T data)</span></span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.data=data;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Test</span> <span class="keyword">extends</span> <span class="title">A</span>&lt;<span class="title">String</span>&gt;</span>&#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">get</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">super</span>.get();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">set</span><span class="params">(String data)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.set(data);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>引出两个问题</p>
+<blockquote>
+<ol>
+<li>父类类型擦除以后T全部替换为Object，那么子类里的那两个方法参数是String，这样根本不是重写，应该是重载，这个是怎么实现多态的？</li>
+<li>第二个问题在解释第一个问题时引出</li>
+</ol>
+</blockquote>
+<p>反编译看一下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">com</span>.<span class="title">Test</span> <span class="keyword">extends</span> <span class="title">com</span>.<span class="title">A</span>&lt;<span class="title">java</span>.<span class="title">lang</span>.<span class="title">String</span>&gt; </span>&#123;</span><br><span class="line">  <span class="keyword">public</span> com.Test();</span><br><span class="line">    Code:</span><br><span class="line">       <span class="number">0</span>: aload_0</span><br><span class="line">       <span class="number">1</span>: invokespecial #<span class="number">1</span>                  <span class="comment">// Method com/A.&quot;&lt;init&gt;&quot;:()V</span></span><br><span class="line">       <span class="number">4</span>: <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> java.lang.<span class="function">String <span class="title">get</span><span class="params">()</span></span>;</span><br><span class="line">    Code:</span><br><span class="line">       <span class="number">0</span>: aload_0</span><br><span class="line">       <span class="number">1</span>: invokespecial #<span class="number">7</span>                  <span class="comment">// Method com/A.get:()Ljava/lang/Object;</span></span><br><span class="line">       <span class="number">4</span>: checkcast     #<span class="number">11</span>                 <span class="comment">// class java/lang/String</span></span><br><span class="line">       <span class="number">7</span>: <span class="function">areturn</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">  <span class="keyword">public</span> <span class="keyword">void</span> <span class="title">set</span><span class="params">(java.lang.String)</span></span>;</span><br><span class="line">    Code:</span><br><span class="line">       <span class="number">0</span>: aload_0</span><br><span class="line">       <span class="number">1</span>: aload_1</span><br><span class="line">       <span class="number">2</span>: invokespecial #<span class="number">13</span>                 <span class="comment">// Method com/A.set:(Ljava/lang/Object;)V</span></span><br><span class="line">       <span class="number">5</span>: <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">set</span><span class="params">(java.lang.Object)</span></span>;</span><br><span class="line">    Code:</span><br><span class="line">       <span class="number">0</span>: aload_0</span><br><span class="line">       <span class="number">1</span>: aload_1</span><br><span class="line">       <span class="number">2</span>: checkcast     #<span class="number">11</span>                 <span class="comment">// class java/lang/String</span></span><br><span class="line">       <span class="number">5</span>: invokevirtual #<span class="number">17</span>                 <span class="comment">// Method set:(Ljava/lang/String;)V</span></span><br><span class="line">       <span class="number">8</span>: <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> java.lang.<span class="function">Object <span class="title">get</span><span class="params">()</span></span>;</span><br><span class="line">    Code:</span><br><span class="line">       <span class="number">0</span>: aload_0</span><br><span class="line">       <span class="number">1</span>: invokevirtual #<span class="number">22</span>                 <span class="comment">// Method get:()Ljava/lang/String;</span></span><br><span class="line">       <span class="number">4</span>: areturn</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>可以看出，我们只写了两个方法，实际有四个方法，另外两个方法是编译器自己生成的桥方法，这两个桥方法是实际覆盖父类方法的方法，桥方法调用我们写的方法</p>
+</blockquote>
+<blockquote>
+<p>这时我们引出了第二个问题，桥方法和我们自定义的方法，方法名和参数列表都一样，只有返回值不一样，也就是方法签名一样，这样JVM怎么允许呢？这个涉及到协变，JVM自己允许自己做一些“错误的”事情，但是不允许我们自己做；</p>
+</blockquote>
+</li>
+</ul>
+</li>
+<li><p>异常中使用泛型</p>
+<ul>
+<li>不能抛出也不能捕获泛型类异常，泛型类扩展Throwable都不合法的。因为，类型擦除后所有类型都被Object代替，则多个catch语句里的异常就是一样的，这样不合法；</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>参考文章</p>
+<p>[]: <a target="_blank" rel="noopener" href="https://www.pdai.tech/md/java/basic/java-basic-x-generic.html">https://www.pdai.tech/md/java/basic/java-basic-x-generic.html</a></p>
+</blockquote>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2020/12/27/%E6%B3%9B%E5%9E%8B%E6%9C%BA%E5%88%B6%E8%AF%A6%E8%A7%A3/" data-id="ckrm3tzz90007k4mee1mkgu02" data-title="泛型机制详解" class="article-share-link">Share</a>
+      
+      
+      
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2020/12/28/Java%E5%9F%BA%E7%A1%80-%E6%B3%A8%E8%A7%A3%E6%9C%BA%E5%88%B6/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Java基础-注解机制
+        
+      </div>
+    </a>
+  
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+
+  
+    
+
+  
+    
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Archives</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/07/">July 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/03/">March 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2021/01/">January 2021</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2020/12/">December 2020</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">Recent Posts</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2021/07/27/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2021/03/03/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Spring-MVC%E6%80%9D%E6%83%B3/">深入理解Spring MVC思想</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/22/%E3%80%8AJava%E7%BC%96%E7%A8%8B%E6%80%9D%E6%83%B3%E5%86%85%E9%83%A8%E7%B1%BB%E3%80%8B/">《Java编程思想内部类》</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/21/%E9%80%9A%E8%BF%87%E5%BC%82%E5%B8%B8%E5%A4%84%E7%90%86%E7%A8%8B%E5%BA%8F/">通过异常处理程序</a>
+          </li>
+        
+          <li>
+            <a href="/2021/01/10/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3Java%E8%99%9A%E6%8B%9F%E6%9C%BA%E8%84%89%E7%BB%9C/">深入理解Java虚拟机脉络</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2021 John Doe<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.4.1.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
